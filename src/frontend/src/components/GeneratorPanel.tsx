@@ -162,11 +162,12 @@ export function GeneratorPanel({
               <button
                 type="button"
                 key={count}
+                data-ocid={`generator.line_count.toggle.${count}`}
                 onClick={() => setLineCount(count)}
-                className={`px-5 py-2 rounded-lg text-sm font-display font-semibold transition-all border ${
+                className={`px-5 py-2 rounded-lg text-sm font-display font-semibold transition-all duration-150 border-2 ${
                   lineCount === count
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-muted/40 text-muted-foreground border-border/50 hover:border-primary/40 hover:text-foreground"
+                    ? "bg-primary text-primary-foreground border-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.35)] scale-105"
+                    : "bg-muted/40 text-muted-foreground border-border/50 hover:border-primary/50 hover:text-foreground hover:bg-muted/60"
                 }`}
               >
                 {count} {count === 1 ? "line" : "lines"}
