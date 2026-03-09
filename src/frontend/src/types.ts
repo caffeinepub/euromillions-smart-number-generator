@@ -16,6 +16,8 @@ export interface GeneratedLine {
   stars: number[];
   strategy: string;
   id: string;
+  simulationCount?: number;
+  comboFrequency?: number;
 }
 
 export type Strategy =
@@ -24,4 +26,5 @@ export type Strategy =
   | "Balanced Strategy"
   | "Trend Strategy"
   | "Weighted Random Strategy"
-  | "Gap Strategy";
+  | "Gap Strategy"
+  | "Monte Carlo Simulation";

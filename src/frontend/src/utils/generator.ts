@@ -132,6 +132,8 @@ function generateLine(
       mainWeights = mainSorted.map((f) => (f.gapDraws ?? maxGap) + 1);
       break;
     }
+    default:
+      mainWeights = mainSorted.map((f) => f.frequency + 1);
   }
 
   const selectedBalls = weightedSample(mainNumbers, mainWeights, 5);
@@ -160,4 +162,97 @@ export function generateLines(
     const strategy = STRATEGIES[Math.floor(Math.random() * STRATEGIES.length)];
     return generateLine(draws, mainFreq, starFreq, strategy);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Monte Carlo Simulation
+// Build probability distributions from historical data, simulate 100,000 draws,
+// and return the most frequently occurring combinations.
+// ---------------------------------------------------------------------------
+
+function buildCumulativeWeights(weights: number[]): number[] {
+  const cum: number[] = [];
+  let total = 0;
+  for (const w of weights) {
+    total += w;
+    cum.push(total);
+  }
+  return cum;
+}
+
+function sampleWithoutReplacement(
+  pool: number[],
+  cumWeights: number[],
+  totalWeight: number,
+  count: number,
+): number[] {
+  // Fast weighted sample without replacement using partial-sum rejection
+  const result: number[] = [];
+  const excluded = new Set<number>();
+
+  while (result.length < count) {
+    const rand = Math.random() * totalWeight;
+    let lo = 0;
+    let hi = pool.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cumWeights[mid] < rand) lo = mid + 1;
+      else hi = mid;
+    }
+    if (!excluded.has(lo)) {
+      result.push(pool[lo]);
+      excluded.add(lo);
+    }
+  }
+  return result.sort((a, b) => a - b);
+}
+
+export function runMonteCarloSimulation(
+  mainFreq: NumberFrequency[],
+  starFreq: NumberFrequency[],
+  count: number,
+  simulations = 100_000,
+): GeneratedLine[] {
+  // Build probability weights — frequency + 1 (Laplace smoothing)
+  const mainPool = mainFreq.map((f) => f.number);
+  const mainWeights = mainFreq.map((f) => f.frequency + 1);
+  const mainCum = buildCumulativeWeights(mainWeights);
+  const mainTotal = mainCum[mainCum.length - 1];
+
+  const starPool = starFreq.map((f) => f.number);
+  const starWeights = starFreq.map((f) => f.frequency + 1);
+  const starCum = buildCumulativeWeights(starWeights);
+  const starTotal = starCum[starCum.length - 1];
+
+  // Run simulations and track combination frequencies
+  const comboMap = new Map<
+    string,
+    { count: number; balls: number[]; stars: number[] }
+  >();
+
+  for (let i = 0; i < simulations; i++) {
+    const balls = sampleWithoutReplacement(mainPool, mainCum, mainTotal, 5);
+    const stars = sampleWithoutReplacement(starPool, starCum, starTotal, 2);
+    const key = `${balls.join(",")}|${stars.join(",")}`;
+    const existing = comboMap.get(key);
+    if (existing) {
+      existing.count++;
+    } else {
+      comboMap.set(key, { count: 1, balls, stars });
+    }
+  }
+
+  // Sort by frequency descending and return top `count` combinations
+  const sorted = Array.from(comboMap.values()).sort(
+    (a, b) => b.count - a.count,
+  );
+
+  return sorted.slice(0, count).map((entry) => ({
+    balls: entry.balls,
+    stars: entry.stars,
+    strategy: "Monte Carlo Simulation",
+    id: `mc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    simulationCount: simulations,
+    comboFrequency: entry.count,
+  }));
 }
