@@ -27,6 +27,14 @@ type LineCount = (typeof LINE_COUNTS)[number];
 
 type GenerationMode = "smart" | "montecarlo";
 
+const SIM_DRAW_PRESETS = [
+  { label: "10K", value: 10_000 },
+  { label: "50K", value: 50_000 },
+  { label: "100K", value: 100_000 },
+  { label: "500K", value: 500_000 },
+  { label: "1M", value: 1_000_000 },
+] as const;
+
 const STRATEGY_COLORS: Record<string, string> = {
   "Hot Number Strategy": "text-orange-400",
   "Cold Number Strategy": "text-blue-400",
@@ -51,7 +59,7 @@ const STRATEGY_DESCRIPTIONS: Record<string, string> = {
   "Gap Strategy":
     "Favours numbers that haven't appeared for the longest stretch, on the theory they are due.",
   "Monte Carlo Simulation":
-    "Runs 100,000 simulated EuroMillions draws using historical probability distributions, then surfaces the combinations that emerged most frequently — the statistically 'richest' picks.",
+    "Runs thousands of simulated EuroMillions draws using historical probability distributions, then surfaces the combinations that emerged most frequently — the statistically 'richest' picks.",
 };
 
 function LotteryBall({
@@ -69,10 +77,37 @@ function LotteryBall({
   );
 }
 
-function ResultCard({ line, index }: { line: GeneratedLine; index: number }) {
+interface ResultCardProps {
+  line: GeneratedLine;
+  index: number;
+  maxFrequency?: number;
+}
+
+function ResultCard({ line, index, maxFrequency }: ResultCardProps) {
   const colorClass = STRATEGY_COLORS[line.strategy] ?? "text-primary";
   const description = STRATEGY_DESCRIPTIONS[line.strategy];
   const isMonteCarlo = line.strategy === "Monte Carlo Simulation";
+
+  // Confidence bar calculations
+  const hasConfidence =
+    isMonteCarlo &&
+    line.comboFrequency != null &&
+    line.simulationCount != null &&
+    line.simulationCount > 0;
+  const confidencePct = hasConfidence
+    ? ((line.comboFrequency! / line.simulationCount!) * 100).toFixed(4)
+    : null;
+  const barFill =
+    hasConfidence && maxFrequency && maxFrequency > 0
+      ? Math.min(100, Math.max(2, (line.comboFrequency! / maxFrequency) * 100))
+      : 2;
+
+  const simLabel =
+    hasConfidence && line.simulationCount!
+      ? line.simulationCount! >= 1_000_000
+        ? `${(line.simulationCount! / 1_000_000).toFixed(0)}M`
+        : `${(line.simulationCount! / 1_000).toFixed(0)}K`
+      : "100K";
 
   const handleCopy = () => {
     const text = `${line.balls.join(", ")} | Stars: ${line.stars.join(", ")}`;
@@ -108,11 +143,6 @@ function ResultCard({ line, index }: { line: GeneratedLine; index: number }) {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        {isMonteCarlo && line.comboFrequency != null && (
-          <span className="text-[10px] font-mono text-amber-400/70 bg-amber-400/10 border border-amber-400/20 rounded px-1.5 py-0.5">
-            {line.comboFrequency}× in 100K draws
-          </span>
-        )}
         <span className="text-xs text-muted-foreground ml-auto">
           Line {index}
         </span>
@@ -125,6 +155,7 @@ function ResultCard({ line, index }: { line: GeneratedLine; index: number }) {
           Copy
         </button>
       </div>
+
       <div className="flex flex-wrap items-center gap-2 md:gap-3">
         {line.balls.map((n) => (
           <LotteryBall
@@ -145,6 +176,26 @@ function ResultCard({ line, index }: { line: GeneratedLine; index: number }) {
           />
         ))}
       </div>
+
+      {/* Confidence bar — Monte Carlo only */}
+      {hasConfidence && (
+        <div className="mt-4 space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] font-mono">
+            <span className="text-amber-400 font-semibold">
+              {confidencePct}% confidence
+            </span>
+            <span className="text-muted-foreground">
+              {line.comboFrequency}× / {simLabel}
+            </span>
+          </div>
+          <div className="relative h-2 rounded-full bg-muted/30 overflow-hidden">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-700"
+              style={{ width: `${barFill}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -169,6 +220,14 @@ export function GeneratorPanel({
   const [guideOpen, setGuideOpen] = useState(false);
   const [mode, setMode] = useState<GenerationMode>("smart");
   const [mcProgress, setMcProgress] = useState<string | null>(null);
+  const [simDraws, setSimDraws] = useState(100_000);
+
+  const handleSimDrawsInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = Number.parseInt(e.target.value, 10);
+    if (!Number.isNaN(raw)) {
+      setSimDraws(Math.min(2_000_000, Math.max(1_000, raw)));
+    }
+  };
 
   const handleGenerate = () => {
     setIsAnimating(true);
@@ -176,11 +235,15 @@ export function GeneratorPanel({
 
     if (mode === "montecarlo") {
       setMcProgress("Building probability distributions…");
-      // Defer to allow UI to paint the loading state
       setTimeout(() => {
-        setMcProgress("Simulating 100,000 draws…");
+        setMcProgress(`Simulating ${simDraws.toLocaleString()} draws…`);
         setTimeout(() => {
-          const lines = runMonteCarloSimulation(mainFreq, starFreq, lineCount);
+          const lines = runMonteCarloSimulation(
+            mainFreq,
+            starFreq,
+            lineCount,
+            simDraws,
+          );
           setMcProgress("Ranking combinations…");
           setTimeout(() => {
             setResults(lines);
@@ -199,6 +262,15 @@ export function GeneratorPanel({
       }, 50);
     }
   };
+
+  const maxFreq =
+    results.length > 0
+      ? Math.max(
+          ...results
+            .filter((r) => r.comboFrequency != null)
+            .map((r) => r.comboFrequency!),
+        )
+      : 1;
 
   return (
     <section data-ocid="generator.section" className="space-y-4">
@@ -244,11 +316,50 @@ export function GeneratorPanel({
           </div>
           {mode === "montecarlo" && (
             <p className="mt-2 text-xs text-amber-400/80 leading-relaxed">
-              Runs 100,000 simulated draws using your historical data and
-              returns the combinations that appeared most often.
+              Runs simulated draws using your historical data and returns the
+              combinations that appeared most often.
             </p>
           )}
         </div>
+
+        {/* Simulation draw count — Monte Carlo only */}
+        {mode === "montecarlo" && (
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-3">
+              Number of simulation draws
+            </p>
+            <div className="flex gap-2 flex-wrap mb-3">
+              {SIM_DRAW_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  data-ocid={`generator.montecarlo.sim_draws.button.${preset.label.toLowerCase()}`}
+                  onClick={() => setSimDraws(preset.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-display font-semibold transition-all duration-150 border-2 ${
+                    simDraws === preset.value
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500 shadow-[0_0_0_3px_hsl(38_92%_50%/0.25)] scale-105"
+                      : "bg-muted/40 text-muted-foreground border-border/50 hover:border-amber-500/50 hover:text-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="number"
+              data-ocid="generator.montecarlo.sim_draws.input"
+              value={simDraws}
+              min={1000}
+              max={2000000}
+              onChange={handleSimDrawsInput}
+              className="w-full rounded-lg bg-muted/30 border border-border/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-colors font-mono"
+              placeholder="Custom draw count (1,000 – 2,000,000)"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Higher values give more accurate results but take longer to run.
+            </p>
+          </div>
+        )}
 
         {/* Line count selector */}
         <div>
@@ -392,11 +503,20 @@ export function GeneratorPanel({
         <div data-ocid="generator.results.section" className="space-y-3">
           <p className="text-sm text-muted-foreground">
             {mode === "montecarlo"
-              ? `Top ${results.length} combination${results.length !== 1 ? "s" : ""} from 100,000 simulated draws`
-              : `Generated ${results.length} line${results.length !== 1 ? "s" : ""} using smart analysis of your draw history`}
+              ? `Top ${results.length} combination${
+                  results.length !== 1 ? "s" : ""
+                } from ${simDraws.toLocaleString()} simulated draws`
+              : `Generated ${results.length} line${
+                  results.length !== 1 ? "s" : ""
+                } using smart analysis of your draw history`}
           </p>
           {results.map((line, i) => (
-            <ResultCard key={line.id} line={line} index={i + 1} />
+            <ResultCard
+              key={line.id}
+              line={line}
+              index={i + 1}
+              maxFrequency={maxFreq}
+            />
           ))}
         </div>
       )}
