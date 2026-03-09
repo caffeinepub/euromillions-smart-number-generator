@@ -1,5 +1,16 @@
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Sparkles, Star, Trash2 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ChevronDown, RefreshCw, Sparkles, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Draw, GeneratedLine, NumberFrequency } from "../types";
 import { generateLines } from "../utils/generator";
@@ -14,6 +25,21 @@ const STRATEGY_COLORS: Record<string, string> = {
   "Trend Strategy": "text-purple-400",
   "Weighted Random Strategy": "text-cyan-400",
   "Gap Strategy": "text-pink-400",
+};
+
+const STRATEGY_DESCRIPTIONS: Record<string, string> = {
+  "Hot Number Strategy":
+    "Favours numbers that have appeared most frequently in recent draws — riding the hot streak.",
+  "Cold Number Strategy":
+    "Favours numbers that have appeared least often, betting they are overdue for a comeback.",
+  "Balanced Strategy":
+    "Mixes the most frequent and least frequent numbers for a blend of hot and cold picks.",
+  "Trend Strategy":
+    "Prioritises numbers that appeared in the last 10 draws, riding recent momentum.",
+  "Weighted Random Strategy":
+    "Picks numbers randomly but weighted by historical frequency — common numbers appear more often.",
+  "Gap Strategy":
+    "Favours numbers that haven't appeared for the longest stretch, on the theory they are due.",
 };
 
 function LotteryBall({
@@ -33,6 +59,7 @@ function LotteryBall({
 
 function ResultCard({ line, index }: { line: GeneratedLine; index: number }) {
   const colorClass = STRATEGY_COLORS[line.strategy] ?? "text-primary";
+  const description = STRATEGY_DESCRIPTIONS[line.strategy];
   return (
     <div
       data-ocid={`generator.result.item.${index}`}
@@ -41,9 +68,23 @@ function ResultCard({ line, index }: { line: GeneratedLine; index: number }) {
     >
       <div className="flex items-center gap-2 mb-3">
         <Sparkles className={`w-3.5 h-3.5 ${colorClass}`} />
-        <span className={`text-xs font-semibold ${colorClass}`}>
-          {line.strategy}
-        </span>
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                className={`text-xs font-semibold ${colorClass} cursor-help underline decoration-dotted underline-offset-2`}
+              >
+                {line.strategy}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              className="max-w-[220px] text-xs text-center"
+            >
+              {description}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <span className="text-xs text-muted-foreground ml-auto">
           Line {index}
         </span>
@@ -89,6 +130,7 @@ export function GeneratorPanel({
   const [results, setResults] = useState<GeneratedLine[]>([]);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const handleGenerate = () => {
     setIsAnimating(true);
@@ -106,8 +148,9 @@ export function GeneratorPanel({
       <h2 className="font-display text-xl md:text-2xl font-bold text-foreground">
         Generate Numbers
       </h2>
-      <div className="card-glass p-5 md:p-6">
-        <div className="mb-5">
+      <div className="card-glass p-5 md:p-6 space-y-5">
+        {/* Line count selector */}
+        <div>
           <p className="text-sm font-medium text-muted-foreground mb-3">
             How many lines?
           </p>
@@ -131,6 +174,46 @@ export function GeneratorPanel({
             ))}
           </div>
         </div>
+
+        {/* Strategy Guide collapsible */}
+        <Collapsible open={guideOpen} onOpenChange={setGuideOpen}>
+          <CollapsibleTrigger
+            data-ocid="generator.strategy_guide.toggle"
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group w-full"
+          >
+            <span className="text-primary/70 group-hover:text-primary transition-colors">
+              ✦
+            </span>
+            Strategy Guide
+            <ChevronDown
+              className={`w-4 h-4 ml-auto transition-transform duration-200 ${
+                guideOpen ? "rotate-180" : ""
+              }`}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Object.entries(STRATEGY_DESCRIPTIONS).map(([name, desc]) => {
+                const colorClass = STRATEGY_COLORS[name] ?? "text-primary";
+                return (
+                  <div
+                    key={name}
+                    className="rounded-lg bg-muted/20 border border-border/30 p-3 space-y-1"
+                  >
+                    <p className={`text-xs font-semibold ${colorClass}`}>
+                      {name}
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {desc}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Action buttons */}
         <div className="flex flex-wrap gap-3">
           <Button
             data-ocid="generator.primary_button"
@@ -172,6 +255,7 @@ export function GeneratorPanel({
           </Button>
         </div>
       </div>
+
       {results.length > 0 && (
         <div data-ocid="generator.results.section" className="space-y-3">
           <p className="text-sm text-muted-foreground">
