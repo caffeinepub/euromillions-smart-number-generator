@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/assets/fonts/BricolageGrotesque[opsz,wdth,wght].woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Outfit";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/assets/fonts/Outfit[wght].woff2") format("woff2");
+}
+
+@layer base {
+  :root {
+    --background: 15 4% 7%;
+    --foreground: 60 9% 96%;
+    --card: 220 15% 10%;
+    --card-foreground: 60 9% 96%;
+    --popover: 220 15% 10%;
+    --popover-foreground: 60 9% 96%;
+    --primary: 47 95% 60%;
+    --primary-foreground: 20 10% 8%;
+    --secondary: 220 20% 16%;
+    --secondary-foreground: 60 9% 96%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 60 9% 96%;
+    --muted: 220 15% 14%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 47 95% 60%;
+    --accent-foreground: 20 10% 8%;
+    --border: 220 15% 18%;
+    --input: 220 15% 14%;
+    --ring: 47 95% 60%;
+    --radius: 0.75rem;
+    --chart-1: 47 95% 60%;
+    --chart-2: 195 80% 55%;
+    --chart-3: 280 70% 65%;
+    --chart-4: 140 60% 50%;
+    --chart-5: 0 72% 65%;
+    --sidebar: 220 15% 8%;
+    --sidebar-foreground: 60 9% 96%;
+    --sidebar-primary: 47 95% 60%;
+    --sidebar-primary-foreground: 20 10% 8%;
+    --sidebar-accent: 220 20% 16%;
+    --sidebar-accent-foreground: 60 9% 96%;
+    --sidebar-border: 220 15% 14%;
+    --sidebar-ring: 47 95% 60%;
+    --ball-main-bg: radial-gradient(circle at 35% 30%, #ffffff 0%, #e8e8e8 40%, #c0c0c0 70%, #a0a0a0 100%);
+    --ball-star-bg: radial-gradient(circle at 35% 30%, #fff8d6 0%, #f5c842 35%, #d4980a 65%, #a8730a 100%);
+    --ball-main-shadow: 0 4px 12px rgba(0,0,0,0.6), inset -2px -3px 6px rgba(0,0,0,0.2);
+    --ball-star-shadow: 0 4px 12px rgba(212,152,10,0.5), inset -2px -3px 6px rgba(0,0,0,0.15);
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { color-scheme: dark; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Outfit", sans-serif;
+    min-height: 100vh;
+    background-color: oklch(var(--background));
+    background-image:
+      radial-gradient(ellipse at 20% 50%, oklch(0.18 0.04 260 / 0.4) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, oklch(0.15 0.05 47 / 0.15) 0%, transparent 50%);
+  }
+  h1, h2, h3, h4 { font-family: "Bricolage Grotesque", sans-serif; }
+}
+
+@keyframes ballReveal {
+  0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+  60% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+  80% { transform: scale(0.9) rotate(-5deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(245,200,66,0.3); }
+  50% { box-shadow: 0 0 20px 6px rgba(245,200,66,0.6); }
+}
+
+.ball-main {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--ball-main-bg);
+  box-shadow: var(--ball-main-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1a1a2e;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.ball-main::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  width: 14px;
+  height: 8px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 50%;
+  transform: rotate(-30deg);
+  pointer-events: none;
+}
+
+.ball-star {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--ball-star-bg);
+  box-shadow: var(--ball-star-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #3a2000;
+  flex-shrink: 0;
+  position: relative;
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.ball-star::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  width: 12px;
+  height: 7px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 50%;
+  transform: rotate(-30deg);
+  pointer-events: none;
+}
+
+.ball-mini-main {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ball-main-bg);
+  box-shadow: var(--ball-main-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: #1a1a2e;
+  flex-shrink: 0;
+}
+
+.ball-animate {
+  animation: ballReveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.card-glass {
+  background: oklch(var(--card));
+  border: 1px solid oklch(var(--border));
+  border-radius: 1rem;
+}
+
+.result-card {
+  animation: fadeUp 0.4s ease both;
+}
